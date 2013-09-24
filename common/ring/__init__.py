@@ -6,3 +6,5 @@ __all__ = [
     'Ring',
     'RingBuilder',
 ]
+
+#定义导入的模块有哪些symbols

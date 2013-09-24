@@ -31,6 +31,7 @@ from swift.common.ring.utils import tiers_for_dev
 
 
 class RingData(object):
+#分区的一致性哈希数据，用于序列化
     """Partitioned consistent hashing ring data (used for serialization)."""
 
     def __init__(self, replica2part2dev_id, devs, part_shift):
@@ -45,6 +46,7 @@ class RingData(object):
     @classmethod
     def deserialize_v1(cls, gz_file):
         json_len, = struct.unpack('!I', gz_file.read(4))
+#用特定格式处理指定字符串
         ring_dict = json.loads(gz_file.read(json_len))
         ring_dict['replica2part2dev_id'] = []
         partition_count = 1 << (32 - ring_dict['part_shift'])
@@ -55,6 +57,7 @@ class RingData(object):
 
     @classmethod
     def load(cls, filename):
+#从文件中载入磁盘数据
         """
         Load ring data from a file.
 
@@ -86,6 +89,7 @@ class RingData(object):
     def serialize_v1(self, file_obj):
         # Write out new-style serialization magic and version:
         file_obj.write(struct.pack('!4sH', 'R1NG', 1))
+#网络字节格式，4char+1short.
         ring = self.to_dict()
         json_encoder = json.JSONEncoder(sort_keys=True)
         json_text = json_encoder.encode(
@@ -98,6 +102,7 @@ class RingData(object):
             file_obj.write(part2dev_id.tostring())
 
     def save(self, filename):
+#将ring实例序列化到磁盘上
         """
         Serialize this RingData instance to disk.
 
@@ -194,15 +199,18 @@ class Ring(object):
 
     @property
     def replica_count(self):
+#ring 副本数量
         """Number of replicas (full or partial) used in the ring."""
         return len(self._replica2part2dev_id)
 
     @property
+#ring 分区数量
     def partition_count(self):
         """Number of partitions in the ring."""
         return len(self._replica2part2dev_id[0])
 
     @property
+#ring 设备数量
     def devs(self):
         """devices in the ring"""
         if time() > self._rtime:
