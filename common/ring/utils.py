@@ -14,6 +14,8 @@
 # limitations under the License.
 from collections import defaultdict
 
+#返回给定device的层组，升序
+
 
 def tiers_for_dev(dev):
     """

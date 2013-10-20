@@ -566,7 +566,10 @@ class Replicator(Daemon):
 
 
 class ReplicatorRpc(object):
-    """Handle Replication RPC calls.  TODO(redbo): document please :)"""
+    """
+    处理复制的远程调用  Handle Replication RPC calls. 
+    TODO(redbo): document please :)
+    """
 
     def __init__(self, root, datadir, broker_class, mount_check=True,
                  logger=None):
@@ -582,7 +585,7 @@ class ReplicatorRpc(object):
         op = args.pop(0)
         drive, partition, hsh = replicate_args
         if self.mount_check and \
-                not os.path.ismount(os.path.join(self.root, drive)):
+                not os.path.ismount(os.path.join(self.root, drive)):       #检查是否是挂载点
             return Response(status='507 %s is not mounted' % drive)
         db_file = os.path.join(self.root, drive,
                                storage_directory(self.datadir, partition, hsh),
@@ -672,10 +675,12 @@ class ReplicatorRpc(object):
         old_filename = os.path.join(self.root, drive, 'tmp', args[0])
         if not os.path.exists(db_file) or not os.path.exists(old_filename):
             return HTTPNotFound()
-        new_broker = self.broker_class(old_filename)
+        new_broker = self.broker_class(old_filename)  
+	    #AccountBroker
         existing_broker = self.broker_class(db_file)
         point = -1
         objects = existing_broker.get_items_since(point, 1000)
+#AccountBroker 继承DatabaseBroker
         while len(objects):
             new_broker.merge_items(objects)
             point = objects[-1]['ROWID']
@@ -686,6 +691,7 @@ class ReplicatorRpc(object):
         return HTTPNoContent()
 
 # Footnote [1]:
+#   环状a->b->c->a->...
 #   This orders the nodes so that, given nodes a b c, a will contact b then c,
 # b will contact c then a, and c will contact a then b -- in other words, each
 # node will always contact the next node in the list first.

@@ -81,6 +81,7 @@ FALLOCATE_RESERVE = 0
 
 def backward(f, blocksize=4096):
     """
+    从后往前读
     A generator returning lines from a file starting with the last line,
     then the second last line, etc. i.e., it reads lines backwards.
     Stops when the first line (if any) is read.
@@ -331,6 +332,7 @@ def disable_fallocate():
 
 def fallocate(fd, size):
     """
+    为文件预分配磁盘空间
     Pre-allocate disk space for a file.
 
     :param fd: file descriptor
@@ -351,6 +353,7 @@ def fallocate(fd, size):
 
 def fsync(fd):
     """
+    同步修改文件数据和元数据到磁盘
     Sync modified file data and metadata to disk.
 
     :param fd: file descriptor
@@ -366,6 +369,7 @@ def fsync(fd):
 
 def fdatasync(fd):
     """
+    同步修改文件数据到磁盘
     Sync modified file data to disk.
 
     :param fd: file descriptor
@@ -378,6 +382,7 @@ def fdatasync(fd):
 
 def drop_buffer_cache(fd, offset, length):
     """
+
     Drop 'buffer' cache for the given range of the given file.
 
     :param fd: file descriptor
@@ -397,6 +402,7 @@ def drop_buffer_cache(fd, offset, length):
 
 def mkdirs(path):
     """
+    创建文件夹
     Ensures the path is a directory or makes it if not. Errors if the path
     exists but is a file or on permissions failure.
 

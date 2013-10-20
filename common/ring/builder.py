@@ -34,6 +34,7 @@ from swift.common.ring.utils import tiers_for_dev, build_tier_tree
 MAX_BALANCE = 999.99
 
 
+#用于创建写到磁盘上的ringData实例
 class RingBuilder(object):
     """
     Used to build swift.common.ring.RingData instances to be written to disk
@@ -97,6 +98,7 @@ class RingBuilder(object):
         """
         Returns the weight of each partition as calculated from the
         total weight of all the devices.
+	partitions * replicas /非空dev的weight和，应该是每一个weight对应的replicas的个数吧 
         """
         try:
             return self.parts * self.replicas / \
@@ -108,6 +110,7 @@ class RingBuilder(object):
 
     def copy_from(self, builder):
         """
+	从一个给定的builder复制一个builder
         Reinitializes this RingBuilder instance from data obtained from the
         builder dict given. Code example::
 
@@ -149,6 +152,7 @@ class RingBuilder(object):
         # which case we default it to 1.
         for dev in self._iter_devs():
             dev.setdefault("region", 1)
+#返回一个字典用于重建RingBuilder
 
     def to_dict(self):
         """
@@ -169,6 +173,7 @@ class RingBuilder(object):
                 '_last_part_moves': self._last_part_moves,
                 '_last_part_gather_start': self._last_part_gather_start,
                 '_remove_devs': self._remove_devs}
+#改变值决定一个块是否可以继续被移动
 
     def change_min_part_hours(self, min_part_hours):
         """
@@ -187,6 +192,8 @@ class RingBuilder(object):
         """
         self.min_part_hours = min_part_hours
 
+#改变ring中副本的个数
+
     def set_replicas(self, new_replica_count):
         """
         Changes the number of replicas in this ring.
@@ -203,6 +210,8 @@ class RingBuilder(object):
             self.devs_changed = True
 
         self.replicas = new_replica_count
+
+#获得一个ring最小数据集
 
     def get_ring(self):
         """
@@ -234,6 +243,7 @@ class RingBuilder(object):
                              devs, 32 - self.part_power)
         return self._ring
 
+#向ring中添加一个device
     def add_dev(self, dev):
         """
         Add a device to the ring. This device dict should have a minimum of the
@@ -282,6 +292,7 @@ class RingBuilder(object):
         self.version += 1
         return dev['id']
 
+#设置device的weight,被其它程序调用，因为builder会重建一些内部状态来反映出变化
     def set_dev_weight(self, dev_id, weight):
         """
         Set the weight of a device. This should be called rather than just
@@ -300,6 +311,8 @@ class RingBuilder(object):
         self.devs_changed = True
         self.version += 1
 
+#从ring中删除一个device
+
     def remove_dev(self, dev_id):
         """
         Remove a device from the ring.
@@ -316,6 +329,8 @@ class RingBuilder(object):
         self._set_parts_wanted()
         self.devs_changed = True
         self.version += 1
+
+#负载均衡,builder 的主要任务
 
     def rebalance(self, seed=None):
         """
@@ -366,6 +381,7 @@ class RingBuilder(object):
         self.version += 1
         return retval, balance
 
+#使ring生效，捕捉building期间的bug
     def validate(self, stats=False):
         """
         Validate the ring.
@@ -440,6 +456,7 @@ class RingBuilder(object):
             return dev_usage, worst
         return None, None
 
+#获得balance值，这个值是距离期望值的百分比
     def get_balance(self):
         """
         Get the balance of the ring. The balance value is the highest
@@ -477,6 +494,7 @@ class RingBuilder(object):
         for part in xrange(self.parts):
             self._last_part_moves[part] = 0xff
 
+#获得负责当前分区的设备
     def get_part_devices(self, part):
         """
         Get the devices that are responsible for the partition,
@@ -491,6 +509,7 @@ class RingBuilder(object):
                 devices.append(dev)
         return devices
 
+#获得非空devices的迭代器
     def _iter_devs(self):
         """
         Returns an iterator all the non-None devices in the ring. Note that
@@ -590,6 +609,7 @@ class RingBuilder(object):
 
         return (list(to_assign.iteritems()), removed_replicas)
 
+#初始化partition分配，基本等同于再平衡ring，除了一些初始化设置
     def _initial_balance(self):
         """
         Initial partition assignment is the same as rebalancing an
@@ -600,6 +620,7 @@ class RingBuilder(object):
 
         self._reassign_parts(self._adjust_replica2part2dev_size()[0])
 
+#根据当前时间计算出上一次移动partition的时间差
     def _update_last_part_moves(self):
         """
         Updates how many hours ago each partition was moved based on the
@@ -616,6 +637,8 @@ class RingBuilder(object):
             else:
                 self._last_part_moves[part] = 0xff
         self._last_part_moves_epoch = int(time())
+
+#从被删除的device设备上获得（partition，replicas）列表，来重新分配
 
     def _gather_reassign_parts(self):
         """
@@ -964,6 +987,7 @@ class RingBuilder(object):
             return mr
         return walk_tree((), self.replicas)
 
+#返回指定分区的devices 列表
     def _devs_for_part(self, part):
         """
         Returns a list of devices for a specified partition.
@@ -975,6 +999,7 @@ class RingBuilder(object):
         return [self.devs[part2dev[part]]
                 for part2dev in self._replica2part2dev
                 if part < len(part2dev)]
+#返回指定分区的附件的列表
 
     def _replicas_for_part(self, part):
         """

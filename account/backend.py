@@ -39,6 +39,7 @@ class AccountBroker(DatabaseBroker):
 
     def _initialize(self, conn, put_timestamp):
         """
+	创建新的用户数据库
         Create a brand new account database (tables, indices, triggers, etc.)
 
         :param conn: DB connection object
@@ -52,6 +53,7 @@ class AccountBroker(DatabaseBroker):
 
     def create_container_table(self, conn):
         """
+	创建容器表
         Create container table which is specific to the account DB.
 
         :param conn: DB connection object
@@ -103,6 +105,7 @@ class AccountBroker(DatabaseBroker):
 
     def create_account_stat_table(self, conn, put_timestamp):
         """
+	创建用户状态表
         Create account_stat table which is specific to the account DB.
         Not a part of Pluggable Back-ends, internal to the baseline code.
 
@@ -355,6 +358,7 @@ class AccountBroker(DatabaseBroker):
 
     def merge_items(self, item_list, source=None):
         """
+	Marvin:将items放入容器的table中
         Merge items into the container table.
 
         :param item_list: list of dictionaries of {'name', 'put_timestamp',

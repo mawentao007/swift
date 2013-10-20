@@ -1201,11 +1201,12 @@ def wsgify(func):
 
 class StatusMap(object):
     """
+    #http 异常
     A dict-like object that returns HTTPException subclasses/factory functions
     where the given key is the status code.
     """
     def __getitem__(self, key):
-        return partial(HTTPException, status=key)
+        return partial(HTTPException, status=key)        #第一个参数为函数名，根据后面的函数参数执行函数调用,简化switch......case。
 status_map = StatusMap()
 
 

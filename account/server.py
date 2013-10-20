@@ -50,7 +50,7 @@ class AccountController(object):
 
     def __init__(self, conf):
         self.logger = get_logger(conf, log_route='account-server')
-        self.root = conf.get('devices', '/srv/node')
+        self.root = conf.get('devices', '/srv/node')        #  配置文件读取数据
         self.mount_check = config_true_value(conf.get('mount_check', 'true'))
         replication_server = conf.get('replication_server', None)
         if replication_server is not None:
@@ -59,6 +59,7 @@ class AccountController(object):
         self.replicator_rpc = ReplicatorRpc(self.root, DATADIR, AccountBroker,
                                             self.mount_check,
                                             logger=self.logger)
+#	    ??????????
         self.auto_create_account_prefix = \
             conf.get('auto_create_account_prefix') or '.'
         swift.common.db.DB_PREALLOCATION = \

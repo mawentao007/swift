@@ -370,6 +370,7 @@ class DatabaseBroker(object):
 
     def newid(self, remote_id):
         """
+	Marvin:重写给database分配ID
         Re-id the database.  This should be called after an rsync.
 
         :param remote_id: the ID of the remote database being rsynced in
@@ -411,6 +412,7 @@ class DatabaseBroker(object):
 
     def get_items_since(self, start, count):
         """
+	获得一个数据库所有对象的列表
         Get a list of objects in the database between start and end.
 
         :param start: start ROWID

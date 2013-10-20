@@ -33,15 +33,18 @@ from swift.common.ring.utils import tiers_for_dev
 class RingData(object):
 #分区的一致性哈希数据，用于序列化
     """Partitioned consistent hashing ring data (used for serialization)."""
+#devices list dev,相当于node，[(id,zone,weight,ip,port,device,meta),]
 
     def __init__(self, replica2part2dev_id, devs, part_shift):
         self.devs = devs
         self._replica2part2dev_id = replica2part2dev_id
+	#partition 到 dev的索引,[array('H'),array('H'),array('H')],这是一个dev的队列的列表
         self._part_shift = part_shift
 
         for dev in self.devs:
             if dev is not None:
                 dev.setdefault("region", 1)
+#dict.setdefault,如果有key，返回key的值，如果没有，返回后面的值
 
     @classmethod
     def deserialize_v1(cls, gz_file):
@@ -131,8 +134,8 @@ class Ring(object):
     """
     Partitioned consistent hashing ring.
 
-    :param serialized_path: path to serialized RingData instance
-    :param reload_time: time interval in seconds to check for a ring change
+    :param serialized_path: path to serialized RingData instance 序列化RingData的路径
+    :param reload_time: time interval in seconds to check for a ring change   检查ring 改变的间隔时间
     """
 
     def __init__(self, serialized_path, reload_time=15, ring_name=None):
@@ -148,15 +151,19 @@ class Ring(object):
 
     def _reload(self, force=False):
         self._rtime = time() + self.reload_time
+#当前时间+间隔时间，就是下次检查时间
         if force or self.has_changed():
+#如果强制或者已经修改
             ring_data = RingData.load(self.serialized_path)
             self._mtime = getmtime(self.serialized_path)
+	    #getmtime   返回上一次修改时间
             self._devs = ring_data.devs
             # NOTE(akscram): Replication parameters like replication_ip
             #                and replication_port are required for
             #                replication process. An old replication
             #                ring doesn't contain this parameters into
             #                device.
+	    #               用于replication 进程的参数，旧版本的ring没有
             for dev in self._devs:
                 if dev:
                     if 'ip' in dev:
@@ -173,6 +180,7 @@ class Ring(object):
             regions = set()
             zones = set()
             self._num_devs = 0
+#将dev添加到ring中
             for dev in self._devs:
                 if dev:
                     regions.add(dev['region'])
@@ -199,7 +207,7 @@ class Ring(object):
 
     @property
     def replica_count(self):
-#ring 副本数量
+	    #replicas数量
         """Number of replicas (full or partial) used in the ring."""
         return len(self._replica2part2dev_id)
 
@@ -225,8 +233,11 @@ class Ring(object):
         :returns: True if the ring on disk has changed, False otherwise
         """
         return getmtime(self.serialized_path) != self._mtime
+	#通过查看修改时间来判断ring是否变化
 
     def _get_part_nodes(self, part):
+	   #直接用hash值生成part
+	   #获得repilca所在的dev_id列表
         part_nodes = []
         seen_ids = set()
         for r2p2d in self._replica2part2dev_id:
@@ -250,6 +261,7 @@ class Ring(object):
         if time() > self._rtime:
             self._reload()
         part = struct.unpack_from('>I', key)[0] >> self._part_shift
+#直接用hash值生成part
         return part
 
     def get_part_nodes(self, part):
@@ -301,47 +313,58 @@ class Ring(object):
 
     def get_more_nodes(self, part):
         """
+        为partition获得一个额外的nodes作为线索传递
         Generator to get extra nodes for a partition for hinted handoff.
-
+        
+	传递结点将会在初始zones外的zones，并且考虑account和设备权重，即使ring改变也将会保留handoffs相同的序列
         The handoff nodes will try to be in zones other than the
         primary zones, will take into account the device weights, and
         will usually keep the same sequences of handoffs even with
         ring changes.
 
-        :param part: partition to get handoff nodes for
+        :param part: partition to get handoff nodes for  需要获得传递结点的nodes
         :returns: generator of node dicts
 
         See :func:`get_nodes` for a description of the node dicts.
         """
         if time() > self._rtime:
+	#如果过了预期reload时间，reload
             self._reload()
         primary_nodes = self._get_part_nodes(part)
+	#获得初始结点
 
         used = set(d['id'] for d in primary_nodes)
         same_regions = set(d['region'] for d in primary_nodes)
         same_zones = set((d['region'], d['zone']) for d in primary_nodes)
 
         parts = len(self._replica2part2dev_id[0])
+	#单个partition的总数
         start = struct.unpack_from(
             '>I', md5(str(part)).digest())[0] >> self._part_shift
+	#start 是partiton要放的最初始位置
         inc = int(parts / 65536) or 1
+	#多重循环增加执行速度
         # Multiple loops for execution speed; the checks and bookkeeping get
         # simpler as you go along
-        hit_all_regions = len(same_regions) == self._num_regions
-        for handoff_part in chain(xrange(start, parts, inc),
+        hit_all_regions = len(same_regions) == self._num_regions #如果所有region都被利用了
+        for handoff_part in chain(xrange(start, parts, inc),               #先尝试start后面的部分，再尝试前面的部分，chain函数返回iter，按顺序返回，第一个完了第二个
                                   xrange(inc - ((parts - start) % inc),
                                          start, inc)):
+#先检查region，再检查zone，最后检查device，就是这么个节奏
             if hit_all_regions:
                 # At this point, there are no regions left untouched, so we
                 # can stop looking.
+	        #没有可用regions，终止
                 break
             for part2dev_id in self._replica2part2dev_id:
                 if handoff_part < len(part2dev_id):
+		#如果handoff小于队列长度，则使用这个device
                     dev_id = part2dev_id[handoff_part]
                     dev = self._devs[dev_id]
                     region = dev['region']
                     zone = (region, dev['zone'])
                     if dev_id not in used and region not in same_regions:
+		    #如果dev没有被用过，并且region也没用过
                         yield dev
                         used.add(dev_id)
                         same_regions.add(region)
@@ -349,12 +372,15 @@ class Ring(object):
                         if len(same_regions) == self._num_regions:
                             hit_all_regions = True
                             break
+	         #返回dev，并且将dev，region和zone都放到使用过的队列里
 
         hit_all_zones = len(same_zones) == self._num_zones
+	#查看是否所有zones都被利用了
         for handoff_part in chain(xrange(start, parts, inc),
                                   xrange(inc - ((parts - start) % inc),
-                                         start, inc)):
+                                         start, inc)):                    #检查所有可能的partition
             if hit_all_zones:
+	        #如果所有的zone都被利用，则没有符合条件的
                 # Much like we stopped looking for fresh regions before, we
                 # can now stop looking for fresh zones; there are no more.
                 break
@@ -367,10 +393,10 @@ class Ring(object):
                         yield dev
                         used.add(dev_id)
                         same_zones.add(zone)
-                        if len(same_zones) == self._num_zones:
+                        if len(same_zones) == self._num_zones:                      #所有zone都被用了
                             hit_all_zones = True
                             break
-
+        #查看是否所有的dev都被利用了
         hit_all_devs = len(used) == self._num_devs
         for handoff_part in chain(xrange(start, parts, inc),
                                   xrange(inc - ((parts - start) % inc),

@@ -343,7 +343,8 @@ class Server():
             return False
 
     def get_pid_file_name(self, conf_file):
-        """Translate conf_file to a corresponding pid_file
+        """将配置文件翻译成进程文件
+	Translate conf_file to a corresponding pid_file
 
         :param conf_file: an conf_file for this server, a string
 
@@ -352,11 +353,12 @@ class Server():
         """
         return conf_file.replace(
             os.path.normpath(SWIFT_DIR), self.run_dir, 1).replace(
-                '%s-server' % self.type, self.server, 1).replace(
-                    '.conf', '.pid', 1)
+	    '%s-server' % self.type, self.server, 1).replace(
+		    '.conf', '.pid', 1)
 
     def get_conf_file_name(self, pid_file):
-        """Translate pid_file to a corresponding conf_file
+        """将pid文件翻译成相应的配置文件
+	Translate pid_file to a corresponding conf_file
 
         :param pid_file: a pid_file for this server, a string
 
@@ -374,7 +376,8 @@ class Server():
                         '.pid', '.conf', 1)
 
     def conf_files(self, **kwargs):
-        """Get conf files for this server
+        """获得当前服务器的配置文件
+	Get conf files for this server
 
         :param: number, if supplied will only lookup the nth server
 
@@ -408,7 +411,8 @@ class Server():
         return conf_files
 
     def pid_files(self, **kwargs):
-        """Get pid files for this server
+        """
+	获得当前服务器的进程文件Get pid files for this server
 
         :param: number, if supplied will only lookup the nth server
 
@@ -573,12 +577,13 @@ class Server():
 
     def launch(self, **kwargs):
         """
+        收集conf文件并且尝试生成服务进程
         Collect conf files and attempt to spawn the processes for this server
         """
         conf_files = self.conf_files(**kwargs)
         if not conf_files:
             return []
-
+        #获得正在运行的进程号
         pids = self.get_running_pids(**kwargs)
 
         already_started = False

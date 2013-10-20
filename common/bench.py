@@ -35,6 +35,8 @@ from swift.common import direct_client
 from swift.common.http import HTTP_CONFLICT
 from swift.common.utils import json
 
+#在每个container同时运行一个函数
+
 
 def _func_on_containers(logger, conf, concurrency_key, func):
     """Run a function on each container with concurrency."""
@@ -44,6 +46,8 @@ def _func_on_containers(logger, conf, concurrency_key, func):
     for container in conf.containers:
         pool.spawn_n(func, bench.url, bench.token, container)
     pool.waitall()
+
+#删除基本containers
 
 
 def delete_containers(logger, conf):
@@ -59,6 +63,8 @@ def delete_containers(logger, conf):
                             % (container, e.http_status))
 
     _func_on_containers(logger, conf, 'del_concurrency', _deleter)
+
+#创建benchmark containers
 
 
 def create_containers(logger, conf):
@@ -109,6 +115,8 @@ class ConnectionPool(eventlet.pools.Pool):
 
     def create(self):
         return client.http_connection(self.url)
+
+#绑定IP/port 并且监听bench任务
 
 
 class BenchServer(object):
