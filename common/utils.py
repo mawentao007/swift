@@ -418,6 +418,7 @@ def mkdirs(path):
 
 def renamer(old, new):
     """
+     尝试修改或者隐藏竞争条件，比如空对象目录被上载的时候删除, 调用的系统的mkdirs和rename
     Attempt to fix / hide race conditions like empty object directories
     being removed by backend processes during uploads, by retrying.
 
@@ -1085,6 +1086,7 @@ def whataremyips():
 @contextmanager
 def lock_path(directory, timeout=10):
     """
+    上下文管理器，对文件夹加锁，这个文件将会被锁住知道这个锁可以被获得，或者锁超时
     Context manager that acquires a lock on a directory.  This will block until
     the lock can be acquired, or the timeout time has expired (whichever occurs
     first).
@@ -1859,6 +1861,7 @@ class ThreadPool(object):
     BYTE = 'a'.encode('utf-8')
 
     """
+    后台线程阻塞操作
     Perform blocking operations in background threads.
 
     Call its methods from within greenlets to green-wait for results without
@@ -1876,7 +1879,7 @@ class ThreadPool(object):
         # We spawn a greenthread whose job it is to pull results from the
         # worker threads via a real Queue and send them to eventlet Events so
         # that the calling greenthreads can be awoken.
-        #
+        #生成一个线程，通过一个队列从工作线程获取结果并且将他们送到event，唤醒线程
         # Since each OS thread has its own collection of greenthreads, it
         # doesn't work to have the worker thread send stuff to the event, as
         # it then notifies its own thread-local eventlet hub to wake up, which
@@ -1886,7 +1889,7 @@ class ThreadPool(object):
         # Thus, each worker sticks its results into a result queue and then
         # writes a byte to a pipe, signaling the result-consuming greenlet (in
         # the main thread) to wake up and consume results.
-        #
+        # 每个工作者将自己的结果注入到结果队列，然后写一个字节到管道，发信号给最终消费结果的事件
         # This is all stuff that eventlet.tpool does, but that code can't have
         # multiple instances instantiated. Since the object server uses one
         # pool per disk, we have to reimplement this stuff.

@@ -52,7 +52,7 @@ DATADIR = 'objects'
 ASYNCDIR = 'async_pending'
 MAX_OBJECT_NAME_LENGTH = 1024
 
-
+#实现WSGI应用
 class ObjectController(object):
     """Implements the WSGI application for the Swift Object Server."""
 
@@ -105,7 +105,7 @@ class ObjectController(object):
             'expiring_objects'
         self.expiring_objects_container_divisor = \
             int(conf.get('expiring_objects_container_divisor') or 86400)
-
+#实例化磁盘文件的函数
     def _diskfile(self, device, partition, account, container, obj, **kwargs):
         """Utility method for instantiating a DiskFile."""
         kwargs.setdefault('mount_check', self.mount_check)
@@ -119,22 +119,24 @@ class ObjectController(object):
     def async_update(self, op, account, container, obj, host, partition,
                      contdevice, headers_out, objdevice):
         """
+	发送或者保存一个异步更新
         Sends or saves an async update.
 
-        :param op: operation performed (ex: 'PUT', or 'DELETE')
-        :param account: account name for the object
-        :param container: container name for the object
-        :param obj: object name
-        :param host: host that the container is on
-        :param partition: partition that the container is on
-        :param contdevice: device name that the container is on
+        :param op: operation performed (ex: 'PUT', or 'DELETE') 执行的操作
+        :param account: account name for the object  account 名
+        :param container: container name for the object  容器名
+        :param obj: object name   对象名
+        :param host: host that the container is on  container所在主机
+        :param partition: partition that the container is on  容器所在partition
+        :param contdevice: device name that the container is on 容器所在的device名
         :param headers_out: dictionary of headers to send in the container
-                            request
-        :param objdevice: device name that the object is in
+                            request                   文件头字典，发送容器请求
+        :param objdevice: device name that the object is in  对象所在的设备名
         """
-        headers_out['user-agent'] = 'obj-server %s' % os.getpid()
+        headers_out['user-agent'] = 'obj-server %s' % os.getpid()  
         full_path = '/%s/%s/%s' % (account, container, obj)
         if all([host, partition, contdevice]):
+	#如果host，partition，contdevice都在,尝试连接
             try:
                 with ConnectionTimeout(self.conn_timeout):
                     ip, port = host.rsplit(':', 1)
@@ -172,6 +174,7 @@ class ObjectController(object):
                          headers_out, objdevice):
         """
         Update the container when objects are updated.
+	当对象更新完成后更新容器
 
         :param op: operation performed (ex: 'PUT', or 'DELETE')
         :param account: account name for the object
@@ -214,6 +217,7 @@ class ObjectController(object):
     def delete_at_update(self, op, delete_at, account, container, obj,
                          request, objdevice):
         """
+	当对象更新后更新过期的容器对象
         Update the expiring objects container when objects are updated.
 
         :param op: operation performed (ex: 'PUT', or 'DELETE')

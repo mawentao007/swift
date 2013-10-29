@@ -36,6 +36,7 @@ def tiers_for_dev(dev):
 
 
 def build_tier_tree(devices):
+#创建tiers层
     """
     Construct the tier tree from the zone layout.
 
@@ -121,6 +122,7 @@ def build_tier_tree(devices):
     for dev in devices:
         for tier in tiers_for_dev(dev):
             if len(tier) > 1:
+	    #到倒数第二个：
                 tier2children[tier[0:-1]].add(tier)
             else:
                 tier2children[()].add(tier)

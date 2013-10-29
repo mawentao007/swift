@@ -51,7 +51,7 @@ class TestRingData(unittest.TestCase):
         self.assertEquals(rd._replica2part2dev_id, r2p2d)
         self.assertEquals(rd.devs, d)
         self.assertEquals(rd._part_shift, s)
-
+#mawentao
     def test_can_load_pickled_ring_data(self):
         rd = ring.RingData(
             [[0, 1, 0, 1], [0, 1, 0, 1]],

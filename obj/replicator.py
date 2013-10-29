@@ -43,6 +43,7 @@ hubs.use_hub(get_hub())
 
 class ObjectReplicator(Daemon):
     """
+复制对象，包装大多数的逻辑和数据，复制进程需要的
     Replicate objects.
 
     Encapsulates most logic and data needed by the object replication process.
@@ -90,9 +91,10 @@ class ObjectReplicator(Daemon):
 
     def _rsync(self, args):
         """
+	执行备份二进制文件来备份一个partition
         Execute the rsync binary to replicate a partition.
 
-        :returns: return code of rsync process. 0 is successful
+        :returns: return code of rsync process. 0 is successful  返回备份进程返回值
         """
         start_time = time.time()
         ret_val = None
@@ -135,6 +137,7 @@ class ObjectReplicator(Daemon):
 
     def rsync(self, node, job, suffixes):
         """
+	从一个远程结点上的partition同步一个文件
         Synchronize local suffix directories from a partition with a remote
         node.
 
@@ -177,6 +180,7 @@ class ObjectReplicator(Daemon):
 
     def check_ring(self):
         """
+	检查ring是否被更新了
         Check to see if the ring has been updated
 
         :returns: boolean indicating whether or not the ring has changed
@@ -189,10 +193,12 @@ class ObjectReplicator(Daemon):
 
     def update_deleted(self, job):
         """
+	高层次的方法来复制一个不属于本结点的单partition
         High-level method that replicates a single partition that doesn't
         belong on this node.
 
         :param job: a dict containing info about the partition to be replicated
+	包含要被复制的partition的信息的字典
         """
 
         def tpool_get_suffixes(path):
@@ -235,6 +241,7 @@ class ObjectReplicator(Daemon):
 
     def update(self, job):
         """
+	高层方法复制一个partition
         High-level method that replicates a single partition.
 
         :param job: a dict containing info about the partition to be replicated
@@ -312,6 +319,7 @@ class ObjectReplicator(Daemon):
 
     def stats_line(self):
         """
+对当前正在运行的复制进程记录各种状态
         Logs various stats for the currently running replication pass.
         """
         if self.replication_count:
@@ -348,6 +356,7 @@ class ObjectReplicator(Daemon):
                 (time.time() - self.start))
 
     def kill_coros(self):
+	   #实用方法，杀死正在运行的携同程序
         """Utility function that kills all coroutines currently running."""
         for coro in list(self.run_pool.coroutines_running):
             try:
@@ -357,6 +366,7 @@ class ObjectReplicator(Daemon):
 
     def heartbeat(self):
         """
+	复制期间后台运行的循环程序
         Loop that runs in the background during replication.  It periodically
         logs progress.
         """
@@ -366,6 +376,7 @@ class ObjectReplicator(Daemon):
 
     def detect_lockups(self):
         """
+	保证复制完成
         In testing, the pool.waitall() call very occasionally failed to return.
         This is an attempt to make sure the replicator finishes its replication
         pass in some eventuality.
@@ -379,6 +390,7 @@ class ObjectReplicator(Daemon):
 
     def collect_jobs(self):
         """
+	返回一组任务列表，指定partitions，结点被备份
         Returns a sorted list of jobs (dictionaries) that specify the
         partitions, nodes, etc to be rsynced.
         """

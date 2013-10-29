@@ -54,6 +54,7 @@ DATAFILE_SYSTEM_META = set('content-length content-type deleted etag'.split())
 
 def read_metadata(fd):
     """
+    读取元数据
     Helper function to read the pickled metadata from an object file.
 
     :param fd: file descriptor to load the metadata from
@@ -73,6 +74,7 @@ def read_metadata(fd):
 
 def write_metadata(fd, metadata):
     """
+    写元数据
     Helper function to write pickled metadata for an object file.
 
     :param fd: file descriptor to write the metadata
@@ -88,13 +90,14 @@ def write_metadata(fd, metadata):
 
 def quarantine_renamer(device_path, corrupted_file_path):
     """
+如果一个文件崩溃了，将它移动到隔离区，并且允许replication修复
     In the case that a file is corrupted, move it to a quarantined
     area to allow replication to fix it.
 
-    :params device_path: The path to the device the corrupted file is on.
-    :params corrupted_file_path: The path to the file you want quarantined.
+    :params device_path: The path to the device the corrupted file is on.  崩溃文件所在设备
+    :params corrupted_file_path: The path to the file you want quarantined.崩溃文件路径
 
-    :returns: path (str) of directory the file was moved to
+    :returns: path (str) of directory the file was moved to   被移动的路径
     :raises OSError: re-raises non errno.EEXIST / errno.ENOTEMPTY
                      exceptions from rename
     """
@@ -113,14 +116,17 @@ def quarantine_renamer(device_path, corrupted_file_path):
 
 def hash_cleanup_listdir(hsh_path, reclaim_age=ONE_WEEK):
     """
+    列举出一个哈希文件夹的内容并且删除旧文件
     List contents of a hash directory and clean up any old files.
 
-    :param hsh_path: object hash path
-    :param reclaim_age: age in seconds at which to remove tombstones
-    :returns: list of files remaining in the directory, reverse sorted
+    :param hsh_path: object hash path   对象哈希路径
+    :param reclaim_age: age in seconds at which to remove tombstones   移除的时间戳
+    :returns: list of files remaining in the directory, reverse sorted   目录中剩下的文件列表
     """
+    #列出给定路径的文件的名
     files = os.listdir(hsh_path)
     if len(files) == 1:
+    #如果只有ts文件，删除old文件
         if files[0].endswith('.ts'):
             # remove tombstones older than reclaim_age
             ts = files[0].rsplit('.', 1)[0]
@@ -148,6 +154,7 @@ def hash_cleanup_listdir(hsh_path, reclaim_age=ONE_WEEK):
 
 def hash_suffix(path, reclaim_age):
     """
+	    回收并且返回所有剩余文件的md5
     Performs reclamation and returns an md5 of all (remaining) files.
 
     :param reclaim_age: age in seconds at which to remove tombstones
@@ -189,6 +196,7 @@ def hash_suffix(path, reclaim_age):
 
 def invalidate_hash(suffix_dir):
     """
+    在partition的hash文件中使一个后缀文件夹的hash生效
     Invalidates the hash for a suffix_dir in the partition's hashes file.
 
     :param suffix_dir: absolute path to suffix dir whose hash needs
@@ -196,7 +204,9 @@ def invalidate_hash(suffix_dir):
     """
 
     suffix = basename(suffix_dir)
+    #suffix_dir的基本名
     partition_dir = dirname(suffix_dir)
+    #partiton的文件夹名
     hashes_file = join(partition_dir, HASH_FILE)
     with lock_path(partition_dir):
         try:
@@ -213,14 +223,15 @@ def invalidate_hash(suffix_dir):
 def get_hashes(partition_dir, recalculate=None, do_listdir=False,
                reclaim_age=ONE_WEEK):
     """
+获得suffix文件夹的hash列表。
     Get a list of hashes for the suffix dir.  do_listdir causes it to mistrust
     the hash cache for suffix existence at the (unexpectedly high) cost of a
     listdir.  reclaim_age is just passed on to hash_suffix.
 
-    :param partition_dir: absolute path of partition to get hashes for
-    :param recalculate: list of suffixes which should be recalculated when got
-    :param do_listdir: force existence check for all hashes in the partition
-    :param reclaim_age: age at which to remove tombstones
+    :param partition_dir: absolute path of partition to get hashes for   partition的绝对路径
+    :param recalculate: list of suffixes which should be recalculated when got  suffixs的列表，需要被重新计算
+    :param do_listdir: force existence check for all hashes in the partition     强制对partition的所有hash进行存在检查
+    :param reclaim_age: age at which to remove tombstones          移除墓碑文件的时间
 
     :returns: tuple of (number of suffix dirs hashed, dictionary of hashes)
     """
@@ -274,6 +285,7 @@ def get_hashes(partition_dir, recalculate=None, do_listdir=False,
 
 class DiskWriter(object):
     """
+	  包装写上下文，相应PUT REST API
     Encapsulation of the write context for servicing PUT REST API
     requests. Serves as the context manager object for DiskFile's create()
     method.
@@ -288,6 +300,7 @@ class DiskWriter(object):
 
     def write(self, chunk):
         """
+	将一块数据写入临时文件
         Write a chunk of data into the temporary file.
 
         :param chunk: the chunk of data to write as a string object
@@ -309,6 +322,7 @@ class DiskWriter(object):
             self.last_sync = self.upload_size
 
     def _finalize_put(self, metadata, target_path):
+	#在调用fsync（）之前写元数据，因此，元数据和数据都刷到磁盘上
         # Write the metadata before calling fsync() so that both data and
         # metadata are flushed to disk.
         write_metadata(self.fd, metadata)
@@ -328,6 +342,7 @@ class DiskWriter(object):
 
     def put(self, metadata, extension='.data'):
         """
+	将文件写到磁盘上，并且重命名，必须要等数据写到temp文件之后
         Finalize writing the file on disk, and renames it from the temp file
         to the real location.  This should be called after the data has been
         written to the temp file.
@@ -348,17 +363,18 @@ class DiskWriter(object):
 class DiskFile(object):
     """
     Manage object files on disk.
+   管理磁盘上的对象文件
 
-    :param path: path to devices on the node
-    :param device: device name
-    :param partition: partition on the device the object lives in
-    :param account: account name for the object
-    :param container: container name for the object
-    :param obj: object name for the object
-    :param disk_chunk_size: size of chunks on file reads
-    :param bytes_per_sync: number of bytes between fdatasync calls
+    :param path: path to devices on the node   node上的devices的路径
+    :param device: device name     设备名
+    :param partition: partition on the device the object lives in   object所在的partiton
+    :param account: account name for the object     对象的account名
+    :param container: container name for the object  对象的container名
+    :param obj: object name for the object      对象名
+    :param disk_chunk_size: size of chunks on file reads   读文件时候chunk块大小
+    :param bytes_per_sync: number of bytes between fdatasync calls  
     :param iter_hook: called when __iter__ returns a chunk
-    :param threadpool: thread pool in which to do blocking operations
+    :param threadpool: thread pool in which to do blocking operations    线程池，可以做blocking操作
     """
 
     def __init__(self, path, device, partition, account, container, obj,
@@ -396,6 +412,7 @@ class DiskFile(object):
 
     def open(self, verify_close=False):
         """
+	打开文件并且阅读元数据
         Open the file and read the metadata.
 
         This method must populate the _metadata attribute.
@@ -481,6 +498,7 @@ class DiskFile(object):
 
     def _construct_from_ts_file(self, ts_file):
         """
+	一个墓碑标记表示对象已经被删除了，我们需要从tombstone中拉取有时间戳的元数据
         A tombstone means the object is considered deleted. We just need to
         pull the metadata from the tombstone file which has the timestamp.
         """
@@ -490,6 +508,7 @@ class DiskFile(object):
 
     def _verify_name(self):
         """
+	核对元数据的name值，匹配对象名
         Verify the metadata's name value matches what we think the object is
         named.
         """
@@ -507,6 +526,7 @@ class DiskFile(object):
 
     def _construct_from_data_file(self, data_file, meta_file):
         """
+	打开数据文件，获取元数据，从fast-POST.meta文件获取，如果它存在的话
         Open the data file to fetch its metadata, and fetch the metadata from
         the fast-POST .meta file as well if it exists, merging them properly.
 
@@ -563,6 +583,7 @@ class DiskFile(object):
                 self.close()
 
     def app_iter_range(self, start, stop):
+	  #返回一个迭代器，在stop和start之间的
         """Returns an iterator over the data file for range (start, stop)"""
         if start or start == 0:
             self.fp.seek(start)
@@ -584,6 +605,7 @@ class DiskFile(object):
                 self.close()
 
     def app_iter_ranges(self, ranges, content_type, boundary, size):
+	   #返回一个迭代器，ranges在一个set中
         """Returns an iterator over the data file for a set of ranges"""
         if not ranges:
             yield ''
@@ -599,6 +621,7 @@ class DiskFile(object):
                 self.close()
 
     def _handle_close_quarantine(self):
+	    #检验一个文件是否需要隔离
         """Check if file needs to be quarantined"""
         try:
             self.get_data_file_size()

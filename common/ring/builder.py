@@ -78,7 +78,7 @@ class RingBuilder(object):
         # have any speed change; though you're welcome to try it again (it was
         # a while ago, code-wise, when I last tried it).
         self._replica2part2dev = None
-
+#_last_part_moves是一个2**23的unsigned bytes 队列，表示上一个partition被移动的时间
         # _last_part_moves is a 2**23 array of unsigned bytes representing the
         # number of hours since a given partition was last moved. This is used
         # to guarantee we don't move a partition twice within a given number of
@@ -227,6 +227,7 @@ class RingBuilder(object):
             # Make devs list (with holes for deleted devices) and not including
             # builder-specific extra attributes.
             devs = [None] * len(self.devs)
+#去掉parts和parts_wanted部分的内容，保留最小数据集
             for dev in self._iter_devs():
                 devs[dev['id']] = dict((k, v) for k, v in dev.items()
                                        if k not in ('parts', 'parts_wanted'))
@@ -327,6 +328,7 @@ class RingBuilder(object):
         dev['weight'] = 0
         self._remove_devs.append(dev)
         self._set_parts_wanted()
+	#将期望partition数量设为空
         self.devs_changed = True
         self.version += 1
 
@@ -355,11 +357,13 @@ class RingBuilder(object):
             random.seed(seed)
 
         self._ring = None
+#上次移动时间是否为空
         if self._last_part_moves_epoch is None:
             self._initial_balance()
             self.devs_changed = False
             return self.parts, self.get_balance()
         retval = 0
+#更新一下所有partition的上次移动时间，确定那些partition不用移动
         self._update_last_part_moves()
         last_balance = 0
         new_parts, removed_part_count = self._adjust_replica2part2dev_size()
@@ -523,6 +527,7 @@ class RingBuilder(object):
 
     def _set_parts_wanted(self):
         """
+	根据相对weight设置期望part数量
         Sets the parts_wanted key for each of the devices to the number of
         partitions the device wants based on its relative weight. This key is
         used to sort the devices according to "most wanted" during rebalancing
@@ -540,7 +545,7 @@ class RingBuilder(object):
             else:
                 dev['parts_wanted'] = \
                     int(weight_of_one_part * dev['weight']) - dev['parts']
-
+#确保_replica2part2dev的长度对于当前的self.replicas值是正确的
     def _adjust_replica2part2dev_size(self):
         """
         Make sure that the lengths of the arrays in _replica2part2dev
@@ -560,10 +565,14 @@ class RingBuilder(object):
         """
         removed_replicas = 0
 
+	#取小数部分和整数部分
         fractional_replicas, whole_replicas = math.modf(self.replicas)
         whole_replicas = int(whole_replicas)
 
         desired_lengths = [self.parts] * whole_replicas
+	#列表，每个单位元素都是一个partition队列的长度
+	#整数部分*part数量，期望的备份个数
+	#加上小数部分*part数量
         if fractional_replicas:
             desired_lengths.append(int(self.parts * fractional_replicas))
 
@@ -573,6 +582,7 @@ class RingBuilder(object):
             # If we crossed an integer threshold (say, 4.1 --> 4),
             # we'll have a partial extra replica clinging on here. Clean
             # up any such extra stuff.
+	    #将多余的repilcas删除掉
             for part2dev in self._replica2part2dev[len(desired_lengths):]:
                 for dev_id in part2dev:
                     dev_losing_part = self.devs[dev_id]
@@ -586,12 +596,14 @@ class RingBuilder(object):
         for replica, desired_length in enumerate(desired_lengths):
             if replica < len(self._replica2part2dev):
                 part2dev = self._replica2part2dev[replica]
+#如果映射队列不够长
                 if len(part2dev) < desired_length:
                     # Not long enough: needs to be extended and the
                     # newly-added pieces assigned to devices.
                     for part in xrange(len(part2dev), desired_length):
                         to_assign[part].append(replica)
                         part2dev.append(0)
+#映射队列太长
                 elif len(part2dev) > desired_length:
                     # Too long: truncate this mapping.
                     for part in xrange(desired_length, len(part2dev)):
@@ -608,6 +620,7 @@ class RingBuilder(object):
                     array('H', (0 for _junk in xrange(desired_length))))
 
         return (list(to_assign.iteritems()), removed_replicas)
+#返回
 
 #初始化partition分配，基本等同于再平衡ring，除了一些初始化设置
     def _initial_balance(self):
@@ -639,7 +652,7 @@ class RingBuilder(object):
         self._last_part_moves_epoch = int(time())
 
 #从被删除的device设备上获得（partition，replicas）列表，来重新分配
-
+#mawentao
     def _gather_reassign_parts(self):
         """
         Returns a list of (partition, replicas) pairs to be reassigned by
@@ -657,11 +670,14 @@ class RingBuilder(object):
         removed_dev_parts = defaultdict(list)
         if self._remove_devs:
             dev_ids = [d['id'] for d in self._remove_devs if d['parts']]
+	    #所有被移除的device的id
             if dev_ids:
                 for part, replica in self._each_part_replica():
+		#第几个part，第几个replica
                     dev_id = self._replica2part2dev[replica][part]
                     if dev_id in dev_ids:
                         self._last_part_moves[part] = 0
+			#上次移动时间清零
                         removed_dev_parts[part].append(replica)
 
         # Now we gather partitions that are "at risk" because they aren't
@@ -695,8 +711,6 @@ class RingBuilder(object):
                 if dev['id'] not in tfd:
                     tfd[dev['id']] = tiers_for_dev(dev)
                 for tier in tfd[dev['id']]:
-                    rep_at_tier = 0
-                    if tier in replicas_at_tier:
                         rep_at_tier = replicas_at_tier[tier]
                     if (rep_at_tier > max_allowed_replicas[tier] and
                             self._last_part_moves[part] >=
@@ -934,6 +948,7 @@ class RingBuilder(object):
 
     def _build_max_replicas_by_tier(self):
         """
+	返回一个字典（tier：replica_count)，给ring上的所有tiers层
         Returns a dict of (tier: replica_count) for all tiers in the ring.
 
         There will always be a () entry as the root of the structure, whose
@@ -943,7 +958,7 @@ class RingBuilder(object):
         maximum number of replicas the device might have for any given
         partition. Anything greater than 1 indicates a partition at serious
         risk, as the data on that partition will not be stored distinctly at
-        the ring's replica_count.
+        the ring's replica_count.????????????
 
         Next there will be (dev_id, ip_port) entries for each device,
         indicating the maximum number of replicas the device shares with other
@@ -980,9 +995,11 @@ class RingBuilder(object):
         def walk_tree(tier, replica_count):
             mr = {tier: replica_count}
             if tier in tier2children:
+	    #下一层
                 subtiers = tier2children[tier]
                 for subtier in subtiers:
                     submax = math.ceil(float(replica_count) / len(subtiers))
+	#update 就是将词典内容继续追加
                     mr.update(walk_tree(subtier, submax))
             return mr
         return walk_tree((), self.replicas)
@@ -1022,6 +1039,7 @@ class RingBuilder(object):
 
     @classmethod
     def load(cls, builder_file, open=open):
+	#获得RingBuilder的实例，根据builder文件
         """
         Obtain RingBuilder instance of the provided builder file
 
